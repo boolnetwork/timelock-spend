@@ -78,7 +78,6 @@ fn main() {
               args.amount, args.receiver, args.fee, args.utxo, args.index_utxo );
 }
 
-
 fn create_tx(secret: &[u8], time: u64, beneficiary: [u8;32], amount: u64, receiver:String ,fee: u64,
              utxo: String, index_utxo: u64) {
     let secp = Secp256k1::new();
