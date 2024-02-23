@@ -1,3 +1,6 @@
+mod utxo;
+mod taproot;
+
 use clap::{App, Arg, Parser};
 use std::str::FromStr;
 use bitcoin::secp256k1::XOnlyPublicKey;
