@@ -17,6 +17,8 @@ use bitcoin::taproot::{ControlBlock, LeafVersion, TaprootBuilder};
 use bitcoin::TapLeafHash;
 
 use hex;
+use crate::taproot::convert_all_inputs_to_sighashs;
+use crate::utxo::{get_utxos, SpvRpcRequestResult};
 
 const DUMMY_UTXO_AMOUNT: Amount = Amount::from_sat( 100_000_000 );
 const SPEND_AMOUNT: Amount = Amount::from_sat( 50_000_000);
@@ -30,10 +32,10 @@ const private_key: [u8; 32] = [118, 152, 169, 184, 186, 69, 131, 143, 153, 108, 
 #[clap(author, version, about, long_about = None)]
 struct Args {
     #[clap(short, long, value_parser)]
-    secret: String,
+    deposit_address: String,
 
     #[clap(short, long, value_parser)]
-    beneficiary: String,
+    secret: String,
 
     #[clap(short, long, value_parser)]
     time: u64,
@@ -42,18 +44,25 @@ struct Args {
     receiver: String,
 
     #[clap(long, value_parser)]
-    amount: u64,
+    pubkey_of_comitee: String,
 
     #[clap(short, long, value_parser)]
-    fee: u64,
+    network: u64,
 
     #[clap(short, long, value_parser)]
-    utxo: String,
+    rpc_url: String,
 
     #[clap(short, long, value_parser)]
-    index_utxo: u64,
+    rpc_username: String,
+
+    #[clap(short, long, value_parser)]
+    rpc_password: String,
 }
 
+// deposit_address_with_timelock_leaf(string)
+// rpc_url(string) rpc_username(string) rpc_password(string)
+// private_key(vec<u8>) time(u64) receiver_address(string)
+// pubkey_of_comitee(string) network(u64)
 
 fn main() {
     //let sec = "e8b6b07943b6d7b966a05d10b8a80aabf784f0947993b3b38622dec72e279558";
@@ -65,20 +74,26 @@ fn main() {
     let private_key_u8: Vec<u8> = private_key_bytes.iter().map(|&x| x as u8).collect();
     println!("private_key_u8 {:?}!", private_key_u8);
 
-    println!("secret {}!", args.beneficiary);
-    let beneficiary_bytes = hex::decode(args.beneficiary).unwrap();
-    let beneficiary_u8: Vec<u8> = beneficiary_bytes.iter().map(|&x| x as u8).collect();
-    println!("beneficiary_u8 {:?}!", beneficiary_u8);
-    let mut beneficiary_u8_32 = [0u8;32];
-    beneficiary_u8_32.copy_from_slice(&beneficiary_u8);
+    println!("secret {}!", args.network);
+    let network: Network = match args.network {
+        0 => Network::Bitcoin,
+        1 => Network::Regtest,
+        2 => Network::Testnet,
+        _ => Network::Bitcoin
+    };
 
+    let mut utxos = get_utxos(
+        &args.deposit_address,
+        &args.rpc_url, &args.rpc_username, &args.rpc_password).unwrap();
+    utxos.retain(|utxo| {
+        utxo.spendable && utxo.amount >= 0.00001000 && utxo.confirmations > 0
+    });
 
-
-    println!("unlock time {}!", args.time);
-    println!("amount fee {}! {}!", args.amount, args.fee);
-
-    create_tx(&private_key_u8, args.time, beneficiary_u8_32,
-              args.amount, args.receiver, args.fee, args.utxo, args.index_utxo );
+    convert_all_inputs_to_sighashs(args.time as u32, utxos,
+                                   &args.receiver,
+                                   &private_key_u8,
+                                   &args.pubkey_of_comitee,
+                                   network);
 }
 
 fn create_tx(secret: &[u8], time: u64, beneficiary: [u8;32], amount: u64, receiver:String ,fee: u64,

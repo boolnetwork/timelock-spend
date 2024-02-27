@@ -61,6 +61,10 @@ pub fn test_create_tx(){
                                    &private_key,
                                    "378b4d0ff06bd8e58eee92b213b81bc3c8fd7af562d1695409a442e1506ee6d8",
                                    Network::Regtest);
+    // deposit_address_with_timelock_leaf(string)
+    // rpc_url(string) rpc_username(string) rpc_password(string)
+    // private_key(vec<u8>) time(u64) receiver_address(string)
+    // pubkey_of_comitee(string) network(u64)
 }
 
 pub fn get_utxos(address: &str, rpc_url: &str, username: &str, password: &str) -> Result<Vec<Utxo>,String>{
