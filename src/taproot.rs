@@ -61,7 +61,7 @@ pub fn convert_all_inputs_to_sighashs(time: u32, utxos: Vec<Utxo>,
 
     let script_pubkey = ScriptBuf::new_p2tr(
         &secp,
-        taproot_spend_info.internal_key(), // 这个和上面的internal_key是一样的
+        taproot_spend_info.internal_key(),
         taproot_spend_info.merkle_root(),
     );
     let mut inputs = Vec::new();
@@ -91,7 +91,7 @@ pub fn convert_all_inputs_to_sighashs(time: u32, utxos: Vec<Utxo>,
     let mut spend = receivers_script_pubkey(receiver , amount_btc, network);
     let mut unsigned_tx = Transaction {
         version: transaction::Version::TWO,  // Post BIP-68.
-        lock_time: absolute::LockTime::from_height(time + 1).unwrap(), // Ignore the locktime.
+        lock_time: absolute::LockTime::from_height(time + 1).unwrap(), // only > locktime,it is valid
         input: inputs.clone(),                  // Input goes into index 0.
         output: vec![spend.clone()],         // Outputs, order does not matter.
     };
@@ -102,7 +102,7 @@ pub fn convert_all_inputs_to_sighashs(time: u32, utxos: Vec<Utxo>,
 
     let mut unsigned_tx = Transaction {
         version: transaction::Version::TWO,  // Post BIP-68.
-        lock_time: absolute::LockTime::from_height(time + 1).unwrap(), // Ignore the locktime.
+        lock_time: absolute::LockTime::from_height(time + 1).unwrap(),
         input: inputs,                  // Input goes into index 0.
         output: vec![spend.clone()],         // Outputs, order does not matter.
     };
