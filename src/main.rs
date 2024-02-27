@@ -19,9 +19,6 @@ const DUMMY_UTXO_AMOUNT: Amount = Amount::from_sat( 100_000_000 );
 const SPEND_AMOUNT: Amount = Amount::from_sat( 50_000_000);
 const CHANGE_AMOUNT: Amount = Amount::from_sat(100_000_000- 50_000_000 - 1_000); // 1000 sat fee.
 
-const private_key: [u8; 32] = [118, 152, 169, 184, 186, 69, 131, 143, 153, 108, 249, 217, 150, 161, 172, 79, 240, 71, 47, 7, 207, 82, 111, 64, 225, 103, 194, 124, 87, 97, 50, 225];
-
-
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
