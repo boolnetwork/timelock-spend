@@ -27,7 +27,7 @@ struct Args {
     secret: String,
 
     #[clap(short, long, value_parser)]
-    beneficiary: String,
+    commitee: String,
 
     #[clap(short, long, value_parser)]
     time: u64,
@@ -46,62 +46,56 @@ struct Args {
 
     #[clap(short, long, value_parser)]
     index_utxo: u64,
+
+    #[clap(short, long, value_parser)]
+    network: u64,
 }
 
 
 fn main() {
-    //let sec = "e8b6b07943b6d7b966a05d10b8a80aabf784f0947993b3b38622dec72e279558";
-
     let args = Args::parse();
-
     println!("secret {}!", args.secret);
     let private_key_bytes = hex::decode(args.secret).unwrap();
     let private_key_u8: Vec<u8> = private_key_bytes.iter().map(|&x| x as u8).collect();
     println!("private_key_u8 {:?}!", private_key_u8);
 
-    println!("secret {}!", args.beneficiary);
-    let beneficiary_bytes = hex::decode(args.beneficiary).unwrap();
-    let beneficiary_u8: Vec<u8> = beneficiary_bytes.iter().map(|&x| x as u8).collect();
-    println!("beneficiary_u8 {:?}!", beneficiary_u8);
-    let mut beneficiary_u8_32 = [0u8;32];
-    beneficiary_u8_32.copy_from_slice(&beneficiary_u8);
-
-
-
+    println!("commitee {}!", args.commitee);
     println!("unlock time {}!", args.time);
     println!("amount fee {}! {}!", args.amount, args.fee);
 
-    create_tx(&private_key_u8, args.time, beneficiary_u8_32,
-              args.amount, args.receiver, args.fee, args.utxo, args.index_utxo );
+    let network = match  args.network {
+        0 => Network::Bitcoin,
+        1 => Network::Testnet,
+        2 => Network::Regtest,
+        _ => Network::Testnet
+    };
+    create_tx(&private_key_u8, args.time, args.commitee,
+              args.amount, args.receiver, args.fee, args.utxo, args.index_utxo, network);
 }
 
-fn create_tx(secret: &[u8], time: u64, beneficiary: [u8;32], amount: u64, receiver:String ,fee: u64,
-             utxo: String, index_utxo: u64) {
+fn create_tx(secret: &[u8], time: u64, commitee: String, amount: u64, receiver:String ,fee: u64,
+             utxo: String, index_utxo: u64, network: Network) {
     let secp = Secp256k1::new();
 
-    //let keypair = Keypair::from_seckey_slice(&secp, &private_key).unwrap();
     let keypair = Keypair::from_seckey_slice(&secp, secret).unwrap();
 
     let (internal_key, _parity) = keypair.x_only_public_key();
 
-
-    // 这里build叶子的script
     let reveal_script  = script::Builder::new()
-        //.push_int(135u32 as i64)
         .push_int(time as i64)
         .push_opcode(OP_CLTV)
         .push_opcode(OP_DROP)
-        //.push_x_only_key(&internal_key)
-        //.push_slice(internal_key.serialize())
-        .push_slice(beneficiary)
+        .push_x_only_key(&internal_key)
         .push_opcode(OP_CHECKSIG)
         .into_script();
     println!("{:?}",reveal_script);
 
+    let commitee_internal_key = XOnlyPublicKey::from_str(&commitee).unwrap();
+
     let taproot_spend_info = TaprootBuilder::new()
         .add_leaf(0, reveal_script.clone())
         .expect("adding leaf should work")
-        .finalize(&secp, internal_key)
+        .finalize(&secp, commitee_internal_key)
         .expect("finalizing taproot builder should work");
 
     let control_block = taproot_spend_info
@@ -110,22 +104,20 @@ fn create_tx(secret: &[u8], time: u64, beneficiary: [u8;32], amount: u64, receiv
 
     let script_pubkey = ScriptBuf::new_p2tr(
         &secp,
-        taproot_spend_info.internal_key(), // 这个和上面的internal_key是一样的
+        taproot_spend_info.internal_key(),
         taproot_spend_info.merkle_root(),
     );
 
     let merkle_root = taproot_spend_info.merkle_root();
-    let address = Address::p2tr(&secp, internal_key, merkle_root,Network::Regtest);
-    // 构建完毕后 往这个taproot address 转账，接着后面生成的代码可以花费这个taproot的叶子
+    let address = Address::p2tr(&secp, commitee_internal_key, merkle_root, network);
     println!("taproot address {}",address);
-    // 填写这个转账的信息
     let out_point = OutPoint {
         txid: Txid::from_str(&utxo).unwrap(), // Obviously invalid.
         vout: index_utxo as u32,
     };
     let utxo = TxOut { value: Amount::from_sat( amount), script_pubkey };
 
-    let address = receivers_address(&receiver);
+    let address = receivers_address(&receiver, network);
     // The input for the transaction we are constructing.
     let input = TxIn {
         previous_output: out_point, // The dummy output we are spending.
@@ -134,18 +126,14 @@ fn create_tx(secret: &[u8], time: u64, beneficiary: [u8;32], amount: u64, receiv
         witness: Witness::default(), // Filled in after signing.
     };
 
-    let spend = TxOut { value: SPEND_AMOUNT, script_pubkey: address.script_pubkey() };
-    let change = TxOut {
-        value: Amount::from_sat(amount - fee),
-        script_pubkey: ScriptBuf::new_p2tr(&secp, internal_key, None)
-    };
+    let spend = TxOut { value: Amount::from_sat(amount - fee), script_pubkey: address.script_pubkey() };
 
     // The transaction we want to sign and broadcast.
     let mut unsigned_tx = Transaction {
         version: transaction::Version::TWO,  // Post BIP-68.
-        lock_time: absolute::LockTime::from_height(time as u32).unwrap(), // Ignore the locktime.
+        lock_time: absolute::LockTime::from_height((time + 1) as u32).unwrap(), // Ignore the locktime.
         input: vec![input],                  // Input goes into index 0.
-        output: vec![spend, change],         // Outputs, order does not matter.
+        output: vec![spend],         // Outputs, order does not matter.
     };
 
     let mut sighasher = SighashCache::new(&mut unsigned_tx);
@@ -161,8 +149,6 @@ fn create_tx(secret: &[u8], time: u64, beneficiary: [u8;32], amount: u64, receiv
     let signature = secp.sign_schnorr(&Message::from(sighash), &keypair);
     println!("signateure {}",signature);
     //1a069fec473e1c251498b981eb6f7e2746996ed6ce76c25479c20b61aee5ba4f7068ae59ad1db775541dc03f31b5e042d2307041a743e5f20e51033db122dc0c
-    //分开签名
-
     let witness = sighasher
         .witness_mut(0)
         .expect("getting mutable witness reference should work");
@@ -178,9 +164,9 @@ fn create_tx(secret: &[u8], time: u64, beneficiary: [u8;32], amount: u64, receiv
     println!("{}", tx_hex);
 }
 
-fn receivers_address(receiver: &str) -> Address {
+fn receivers_address(receiver: &str, network: Network) -> Address {
     Address::from_str(receiver)
         .expect("a valid address")
-        .require_network(Network::Regtest)
+        .require_network(network)
         .expect("valid address for mainnet")
 }
