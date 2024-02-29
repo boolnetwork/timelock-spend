@@ -94,3 +94,51 @@ pub fn get_utxos(address: &str, rpc_url: &str, username: &str, password: &str) -
         return Ok(utxos);
     }
 }
+
+#[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq)]
+pub struct SmallUtxo{
+    pub txid: String,
+    pub vout: u64,
+    pub amount: f64,
+}
+
+impl SmallUtxo {
+    pub fn to_full_utxo(&self) ->Utxo{
+        Utxo{
+            txid: self.txid.clone(),
+            vout: self.vout.clone(),
+            address: "".to_string(),
+            script_pub_key: "".to_string(),
+            amount: self.amount.clone(),
+            confirmations: 100,
+            spendable: true,
+            solvable: true,
+            desc: "".to_string(),
+            parent_descs: vec![],
+            safe: false
+        }
+    }
+}
+
+pub fn convert_to_full_utxos(smallutoxs:Vec<SmallUtxo>) -> Vec<Utxo>{
+    smallutoxs.iter().map(|each| each.to_full_utxo()).collect()
+}
+
+pub fn read_utxos_from_file(){
+    use serde_json::Value;
+    use std::fs::File;
+    use std::io::BufReader;
+    use std::io::Read;
+    let file = File::open("utxos.json").expect("Unable to open file");
+    let mut reader = BufReader::new(file);
+
+    let mut contents = String::new();
+    reader.read_to_string(&mut contents).expect("Unable to read file");
+
+    let json: Vec<SmallUtxo> = serde_json::from_str(&contents).expect("Unable to parse JSON");
+
+    println!("{:?}", json);
+
+    let utxos = convert_to_full_utxos(json);
+
+}
