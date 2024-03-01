@@ -1,7 +1,7 @@
 it can spend utxo sent to this kind of tapleaf in taproot address:
 ```
 OP_PUSHBYTES_2 
-<expire time>
+<expire time  large than 500000000 is timestamp>
 OP_CLTV 
 OP_DROP 
 OP_PUSHBYTES_32 
@@ -13,7 +13,7 @@ OP_CHECKSIG
 example:
 ```
 ./forced-withdraw.exe --secret 7698a9b8ba45838f996cf9d996a1ac4ff0472f07cf526f40e167c27c576132e1 \
---commitee df96a7f0809b69deb50936b91626ffad8f07f79518bd3f37067eff2e04bb6ed1 --time 200 \
+--commitee df96a7f0809b69deb50936b91626ffad8f07f79518bd3f37067eff2e04bb6ed1 --time 1609279709 \
 --receiver bcrt1p0gx7rktgnlq23z9lsfdpkew22znr9e4frrelkqdcq3dum9z8hnrsd93q6u --amount 100000000  \
 --utxo 980430593fb868eb995d287c9ca5cc68dcf979d9c08ec9de9fd1f1e205b329d1 \
 --index-utxo 1 -n 2
