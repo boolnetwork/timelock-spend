@@ -61,7 +61,7 @@ fn main() {
 
     println!("commitee {}!", args.commitee);
     println!("unlock time {}!", args.time);
-    println!("amount fee {}! {}!", args.amount, args.fee_rate);
+    println!("amount {}! fee_rate {}!", args.amount, args.fee_rate);
 
     let network = match  args.network {
         0 => Network::Bitcoin,
@@ -177,7 +177,7 @@ pub fn fee_tx(tx: Transaction, fee_rate: f64) -> Transaction{
     let mut tx_fee = tx.clone();
     tx_fee.input[0].witness = Witness::from(vec![vec![88u8;14];15]);
     let fee = calculate_fee(tx_fee.vsize(), fee_rate, 1.0);
-    println!("fee {:?}",fee);
+    println!("actual fee {:?}",fee);
     tx_fee.input[0].witness.clear();
     tx_fee.output[0].value = tx_fee.output[0].value - Amount::from_sat(fee);
     println!("{:?}", tx_fee);
