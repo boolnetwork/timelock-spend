@@ -38,8 +38,8 @@ struct Args {
     #[clap(long, value_parser)]
     amount: u64,
 
-    #[clap(short, long, value_parser)]
-    fee: u64,
+    #[clap(short, long, value_parser, default_value = "0.00001")]
+    fee_rate: f64,
 
     #[clap(short, long, value_parser)]
     utxo: String,
@@ -61,7 +61,7 @@ fn main() {
 
     println!("commitee {}!", args.commitee);
     println!("unlock time {}!", args.time);
-    println!("amount fee {}! {}!", args.amount, args.fee);
+    println!("amount fee {}! {}!", args.amount, args.fee_rate);
 
     let network = match  args.network {
         0 => Network::Bitcoin,
@@ -70,10 +70,10 @@ fn main() {
         _ => Network::Testnet
     };
     create_tx(&private_key_u8, args.time, args.commitee,
-              args.amount, args.receiver, args.fee, args.utxo, args.index_utxo, network);
+              args.amount, args.receiver, args.fee_rate, args.utxo, args.index_utxo, network);
 }
 
-fn create_tx(secret: &[u8], time: u64, commitee: String, amount: u64, receiver:String ,fee: u64,
+fn create_tx(secret: &[u8], time: u64, commitee: String, amount: u64, receiver:String ,fee_rate: f64,
              utxo: String, index_utxo: u64, network: Network) {
     let secp = Secp256k1::new();
 
@@ -126,7 +126,7 @@ fn create_tx(secret: &[u8], time: u64, commitee: String, amount: u64, receiver:S
         witness: Witness::default(), // Filled in after signing.
     };
 
-    let spend = TxOut { value: Amount::from_sat(amount - fee), script_pubkey: address.script_pubkey() };
+    let spend = TxOut { value: Amount::from_sat(amount), script_pubkey: address.script_pubkey() };
 
     // The transaction we want to sign and broadcast.
     let mut unsigned_tx = Transaction {
@@ -135,6 +135,8 @@ fn create_tx(secret: &[u8], time: u64, commitee: String, amount: u64, receiver:S
         input: vec![input],                  // Input goes into index 0.
         output: vec![spend],         // Outputs, order does not matter.
     };
+
+    let mut unsigned_tx = fee_tx(unsigned_tx.clone(), fee_rate);
 
     let mut sighasher = SighashCache::new(&mut unsigned_tx);
     let sighash = sighasher
@@ -169,4 +171,21 @@ fn receivers_address(receiver: &str, network: Network) -> Address {
         .expect("a valid address")
         .require_network(network)
         .expect("valid address for mainnet")
+}
+
+pub fn fee_tx(tx: Transaction, fee_rate: f64) -> Transaction{
+    let mut tx_fee = tx.clone();
+    tx_fee.input[0].witness = Witness::from(vec![vec![88u8;14];15]);
+    let fee = calculate_fee(tx_fee.vsize(), fee_rate, 1.0);
+    println!("fee {:?}",fee);
+    tx_fee.input[0].witness.clear();
+    tx_fee.output[0].value = tx_fee.output[0].value - Amount::from_sat(fee);
+    println!("{:?}", tx_fee);
+    return tx_fee;
+}
+
+pub fn calculate_fee(virtual_size: usize, rate: f64, multiplier: f64) -> u64 {
+    let kilo_bytes = virtual_size as f64 / 1000_f64;
+    let rate = bitcoin::Amount::from_btc(rate).unwrap().to_sat() as f64;
+    ((kilo_bytes * rate) * multiplier).round() as u64
 }

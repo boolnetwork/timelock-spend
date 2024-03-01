@@ -1,4 +1,38 @@
+it can spend utxo sent to this kind of tapleaf in taproot address:
+```
+OP_PUSHBYTES_2 
+<expire time>
+OP_CLTV 
+OP_DROP 
+OP_PUSHBYTES_32 
+<internal key of the beneficiary> 
+OP_CHECKSIG
+```
+
+
 example:
 ```
-./forced-withdraw.exe --secret e8b6b07943b6d7b966a05d10b8a80aabf784f0947993b3b38622dec72e279558 --beneficiary d8e66e50e142a4095469d162f57afdc8c31bb813b292ee8ee5d86bf00f4d8b37 --time 555 --receiver bcrt1p5cj85luz7uhaugxpusgtk3xpyp5wmje6ks5fcl3njzegfdxexuws45r4l6 --amount 10000 --fee 100 --utxo 33f51125c2be62f09c6977f0a7d1bc9b5db17bff9ec1482a6d280e65c01163cf --index-utxo 5
+./forced-withdraw.exe --secret 7698a9b8ba45838f996cf9d996a1ac4ff0472f07cf526f40e167c27c576132e1 \
+--commitee df96a7f0809b69deb50936b91626ffad8f07f79518bd3f37067eff2e04bb6ed1 --time 200 \
+--receiver bcrt1p0gx7rktgnlq23z9lsfdpkew22znr9e4frrelkqdcq3dum9z8hnrsd93q6u --amount 100000000  \
+--utxo 980430593fb868eb995d287c9ca5cc68dcf979d9c08ec9de9fd1f1e205b329d1 \
+--index-utxo 1 -n 2
+```
+
+`--secret` is the hex format of The private key of the beneficiary of the time-lock script in Taproot.
+
+`--commitee` is the internal key of the DHC, x only publickey
+
+`--receiver` decide who receive the btc
+
+`--time` expire time of the time-lock script in Taproot.
+
+`--utxo` `--index-utxo` `--amount`  The three together constitute the core data of the UTXO that will be spent in this transaction.
+
+`--fee-rate` is default set to 0.00001
+
+```
+-n 0    = Network::Bitcoin
+-n 1    = Network::Testnet
+-n 2    = Network::Regtest
 ```
