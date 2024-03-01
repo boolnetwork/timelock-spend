@@ -131,7 +131,7 @@ fn create_tx(secret: &[u8], time: u64, commitee: String, amount: u64, receiver:S
     // The transaction we want to sign and broadcast.
     let mut unsigned_tx = Transaction {
         version: transaction::Version::TWO,  // Post BIP-68.
-        lock_time: absolute::LockTime::from_height((time + 1) as u32).unwrap(), // Ignore the locktime.
+        lock_time: absolute::LockTime::from_time((time + 1) as u32).unwrap(), // Ignore the locktime.
         input: vec![input],                  // Input goes into index 0.
         output: vec![spend],         // Outputs, order does not matter.
     };
